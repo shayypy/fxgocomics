@@ -175,9 +175,9 @@ app.get("/:comic/:year/:month/:day", async (c) => {
   }
 
   const { origin } = new URL(c.req.url);
-  // if (!isPlatformRequest(c.req)) {
-  //   return c.redirect(c.req.url.replace(origin, GOCOMICS_ORIGIN));
-  // }
+  if (!isPlatformRequest(c.req)) {
+    return c.redirect(c.req.url.replace(origin, GOCOMICS_ORIGIN));
+  }
 
   let strip: Strip;
   try {
@@ -253,7 +253,7 @@ app.get("/:comic/:year/:month/:day", async (c) => {
 			<title>${strip.title}</title>
 			${raw(compileMetaTags(tags))}
 		</head><body>
-			<p>Hello, you should be redirected shortly.</p>
+			<p>Hello, you should be redirected shortly. If not, <a href="${strip.canonicalUrl}" rel="noreferrer">click here.</a></p>
 		</body></html>`,
   );
 });
