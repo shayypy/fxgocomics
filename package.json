@@ -1,19 +1,27 @@
 {
-	"name": "fxgocomics",
-	"version": "0.0.0",
-	"private": true,
-	"scripts": {
-		"deploy": "wrangler deploy",
-		"dev": "wrangler dev",
-		"start": "wrangler dev",
-		"test": "vitest",
-		"cf-typegen": "wrangler types"
-	},
-	"devDependencies": {
-		"@cloudflare/vitest-pool-workers": "^0.7.5",
-		"@cloudflare/workers-types": "^4.20250407.0",
-		"typescript": "^5.5.2",
-		"vitest": "~3.0.7",
-		"wrangler": "^4.8.0"
-	}
+  "name": "fxgocomics",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "start": "wrangler dev",
+    "test": "vitest",
+    "cf-typegen": "wrangler types"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@cloudflare/vitest-pool-workers": "^0.7.5",
+    "@cloudflare/workers-types": "^4.20250407.0",
+    "typescript": "^5.5.2",
+    "vitest": "~3.0.7",
+    "wrangler": "^4.8.0"
+  },
+  "trustedDependencies": [
+    "@biomejs/biome"
+  ],
+  "dependencies": {
+    "hono": "^4.7.5",
+    "zod": "^3.24.2"
+  }
 }
