@@ -8,6 +8,7 @@ import { GOCOMICS_ORIGIN, isPlatformRequest } from "./http";
 import { decodeSnowcode, encodeSnowcode } from "./snowcode";
 
 const app = new Hono();
+app.get("/", (c) => c.redirect("https://github.com/shayypy/fxgocomics"));
 
 const StripParams = z.object({
   comic: z.string().min(1).max(100),

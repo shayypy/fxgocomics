@@ -1,8 +1,14 @@
 {
-	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "fxgocomics",
-	"main": "src/index.ts",
-	"compatibility_date": "2025-04-07",
-	"placement": { "mode": "smart" },
-	"assets": { "directory": "./public/", "binding": "ASSETS" },
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "fxgocomics",
+  "main": "src/index.ts",
+  "workers_dev": false,
+  "compatibility_date": "2025-04-07",
+  "placement": { "mode": "smart" },
+  "assets": { "directory": "./public/", "binding": "ASSETS" },
+  "routes": [
+    { "pattern": "fxgocomics.com", "custom_domain": true },
+    { "pattern": "d.fxgocomics.com", "custom_domain": true },
+    { "pattern": "www.fxgocomics.com", "custom_domain": true }
+  ]
 }
