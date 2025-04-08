@@ -6,9 +6,57 @@ import { html, raw } from "hono/html";
 import { compileMetaTags, type MetaTag } from "./html/meta";
 import { GOCOMICS_ORIGIN, isPlatformRequest } from "./http";
 import { decodeSnowcode, encodeSnowcode } from "./snowcode";
+import { cache } from "hono/cache";
 import { env } from "hono/adapter";
 
 const app = new Hono();
+
+app.get(
+  "*",
+  cache({
+    cacheName: "all",
+    // 30 minutes
+    cacheControl: "max-age=1800",
+    // For all routes, this is our cache key for the following reasons:
+    // - We don't define any query parameters, so we're intentionally
+    //   disallowing cache busting for the purpose of spam
+    // - We host on multiple domains and we want them to share a cache (so the
+    //   real origin is not considered)
+    keyGenerator: (c) => {
+      const { pathname } = new URL(c.req.url);
+      const base = new URL(`http://localhost${pathname}`);
+      // Not sure why, but the key has to be a valid URL
+      return base.href;
+    },
+  }),
+);
+app.get(
+  "/:comic/:year/:month/:day",
+  cache({
+    cacheName: "strip",
+    // 60 minutes
+    cacheControl: "max-age=3600",
+    keyGenerator: (c) => {
+      const { host, pathname } = new URL(c.req.url);
+      // We assume it's not being hosted on something like a co.uk 2LD or a
+      // root domain of d.com. The purpose of this is to give `www.` and the
+      // root the same cache, but let `d.` have its own cache for its redirect
+      // responses. This could be simpler if we were caching the GC responses
+      // instead.
+      const reducedHost =
+        host.split(".")[0] === "d" ? host : host.split(".").slice(-2).join(".");
+
+      // We don't define any query parameters, so we're intentionally
+      // disallowing cache busting for the purpose of spam
+      const base = new URL(`https://${reducedHost}${pathname}`);
+      // Not sure why, but the key has to be a valid URL
+      return base.href;
+    },
+    // We serve different responses to this endpoint for bots (see isPlatformRequest)
+    vary: "User-Agent",
+  }),
+);
+
 app.get("/", (c) => c.redirect(env<Pick<Env, "GITHUB">>(c).GITHUB));
 
 const StripParams = z.object({

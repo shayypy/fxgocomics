@@ -1,4 +1,4 @@
-import { GOCOMICS_ORIGIN, USER_AGENT } from "../http";
+import { GOCOMICS_ORIGIN } from "../http";
 import Scraper from "./scraper";
 import type {
   ComicPageComicStory,
