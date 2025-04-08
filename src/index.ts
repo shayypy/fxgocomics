@@ -31,32 +31,6 @@ app.get(
     },
   }),
 );
-app.get(
-  "/:comic/:year/:month/:day",
-  cache({
-    cacheName: "strip",
-    // 60 minutes
-    cacheControl: "max-age=3600",
-    keyGenerator: (c) => {
-      const { host, pathname } = new URL(c.req.url);
-      // We assume it's not being hosted on something like a co.uk 2LD or a
-      // root domain of d.com. The purpose of this is to give `www.` and the
-      // root the same cache, but let `d.` have its own cache for its redirect
-      // responses. This could be simpler if we were caching the GC responses
-      // instead.
-      const reducedHost =
-        host.split(".")[0] === "d" ? host : host.split(".").slice(-2).join(".");
-
-      // We don't define any query parameters, so we're intentionally
-      // disallowing cache busting for the purpose of spam
-      const base = new URL(`https://${reducedHost}${pathname}`);
-      // Not sure why, but the key has to be a valid URL
-      return base.href;
-    },
-    // We serve different responses to this endpoint for bots (see isPlatformRequest)
-    vary: "User-Agent",
-  }),
-);
 
 app.get("/", (c) => c.redirect(env<Pick<Env, "GITHUB">>(c).GITHUB));
 
@@ -79,6 +53,68 @@ const StripParams = z.object({
 const ZodSnowcodeStrip = z.object({
   c: z.string().min(1).max(100),
   d: z.string().regex(/\d{4}-\d{1,2}-\d{1,2}/),
+});
+
+// The router matches in order of registration(?) which means we need to have
+// the API routes at the top or else this endpoint gets mistaken for the strip
+// embed route.
+app.get("/api/v1/comics/:comic", async (c) => {
+  const parsed = await z
+    .object({
+      comic: z.string().min(1).max(100),
+    })
+    .spa({
+      comic: c.req.param("comic"),
+    });
+  if (!parsed.success) {
+    return c.json(
+      { message: "Bad Request", errors: parsed.error.format() },
+      { status: 400 },
+    );
+  }
+
+  let series: Series;
+  try {
+    series = await getSeries(parsed.data.comic);
+  } catch (e) {
+    console.error(e);
+    return c.json(
+      { message: "Internal Server Error", error: String(e) },
+      { status: 500 },
+    );
+  }
+  return c.json(series);
+});
+
+app.get("/api/v1/comics/:comic/strips/:date", async (c) => {
+  const parsed = await z
+    .object({
+      comic: z.string().min(1).max(100),
+      date: z.string().date(),
+    })
+    .spa({
+      comic: c.req.param("comic"),
+      date: c.req.param("date"),
+    });
+  if (!parsed.success) {
+    return c.json(
+      { message: "Bad Request", errors: parsed.error.format() },
+      { status: 400 },
+    );
+  }
+
+  const [year, month, day] = parsed.data.date.split("-").map(Number);
+  let strip: Strip;
+  try {
+    strip = await getStrip(parsed.data.comic, year, month, day);
+  } catch (e) {
+    console.error(e);
+    return c.json(
+      { message: "Internal Server Error", error: String(e) },
+      { status: 500 },
+    );
+  }
+  return c.json(strip);
 });
 
 // Expected path syntax by Discord for Mastodon data
@@ -160,6 +196,33 @@ app.get("/users/:comic/statuses/:snowcode", async (c) => {
     `${GOCOMICS_ORIGIN}/${decoded.c}/${decoded.d.replace(/-/g, "/")}`,
   );
 });
+
+app.get(
+  "/:comic/:year/:month/:day",
+  cache({
+    cacheName: "strip",
+    // 60 minutes
+    cacheControl: "max-age=3600",
+    keyGenerator: (c) => {
+      const { host, pathname } = new URL(c.req.url);
+      // We assume it's not being hosted on something like a co.uk 2LD or a
+      // root domain of d.com. The purpose of this is to give `www.` and the
+      // root the same cache, but let `d.` have its own cache for its redirect
+      // responses. This could be simpler if we were caching the GC responses
+      // instead.
+      const reducedHost =
+        host.split(".")[0] === "d" ? host : host.split(".").slice(-2).join(".");
+
+      // We don't define any query parameters, so we're intentionally
+      // disallowing cache busting for the purpose of spam
+      const base = new URL(`https://${reducedHost}${pathname}`);
+      // Not sure why, but the key has to be a valid URL
+      return base.href;
+    },
+    // We serve different responses to this endpoint for bots (see isPlatformRequest)
+    vary: "User-Agent",
+  }),
+);
 
 app.get("/:comic/:year/:month/:day", async (c) => {
   const parsed = await StripParams.spa({
@@ -258,65 +321,6 @@ app.get("/:comic/:year/:month/:day", async (c) => {
 			<p>Hello, you should be redirected shortly. If not, <a href="${strip.canonicalUrl}" rel="noreferrer">click here.</a></p>
 		</body></html>`,
   );
-});
-
-app.get("/api/v1/comics/:comic", async (c) => {
-  const parsed = await z
-    .object({
-      comic: z.string().min(1).max(100),
-    })
-    .spa({
-      comic: c.req.param("comic"),
-    });
-  if (!parsed.success) {
-    return c.json(
-      { message: "Bad Request", errors: parsed.error.format() },
-      { status: 400 },
-    );
-  }
-
-  let series: Series;
-  try {
-    series = await getSeries(parsed.data.comic);
-  } catch (e) {
-    console.error(e);
-    return c.json(
-      { message: "Internal Server Error", error: String(e) },
-      { status: 500 },
-    );
-  }
-  return c.json(series);
-});
-
-app.get("/api/v1/comics/:comic/strips/:date", async (c) => {
-  const parsed = await z
-    .object({
-      comic: z.string().min(1).max(100),
-      date: z.string().date(),
-    })
-    .spa({
-      comic: c.req.param("comic"),
-      date: c.req.param("date"),
-    });
-  if (!parsed.success) {
-    return c.json(
-      { message: "Bad Request", errors: parsed.error.format() },
-      { status: 400 },
-    );
-  }
-
-  const [year, month, day] = parsed.data.date.split("-").map(Number);
-  let strip: Strip;
-  try {
-    strip = await getStrip(parsed.data.comic, year, month, day);
-  } catch (e) {
-    console.error(e);
-    return c.json(
-      { message: "Internal Server Error", error: String(e) },
-      { status: 500 },
-    );
-  }
-  return c.json(strip);
 });
 
 export default app satisfies ExportedHandler<Env>;
