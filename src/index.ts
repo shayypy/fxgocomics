@@ -6,9 +6,10 @@ import { html, raw } from "hono/html";
 import { compileMetaTags, type MetaTag } from "./html/meta";
 import { GOCOMICS_ORIGIN, isPlatformRequest } from "./http";
 import { decodeSnowcode, encodeSnowcode } from "./snowcode";
+import { env } from "hono/adapter";
 
 const app = new Hono();
-app.get("/", (c) => c.redirect("https://github.com/shayypy/fxgocomics"));
+app.get("/", (c) => c.redirect(env<Pick<Env, "GITHUB">>(c).GITHUB));
 
 const StripParams = z.object({
   comic: z.string().min(1).max(100),

@@ -10,5 +10,8 @@
     { "pattern": "fxgocomics.com", "custom_domain": true },
     { "pattern": "d.fxgocomics.com", "custom_domain": true },
     { "pattern": "www.fxgocomics.com", "custom_domain": true }
-  ]
+  ],
+  "vars": {
+    "GITHUB": "https://github.com/shayypy/fxgocomics"
+  }
 }
