@@ -13,8 +13,17 @@ import { decodeSnowcode, encodeSnowcode } from "./snowcode";
 const app = new Hono();
 app.get("/api/*", async (c, next) => {
   const { host } = new URL(c.req.url);
-  if (/(\.|^)fxgocomics\.com$/i.test(host) && host !== "fxgocomics.com") {
-    return c.json({ message: "Must use root domain for API requests" }, 418);
+  if (/(\.|^)fxgocomics\.com$/i.test(host)) {
+    const root = "fxgocomics.com";
+    // Let Discord use the statuses endpoint at the www subdomain
+    const hosts = c.req.matchedRoutes
+      .map((r) => r.path)
+      .includes("/api/v1/statuses/:snowcode")
+      ? [`www.${root}`, root]
+      : [root];
+    if (!hosts.includes(host)) {
+      return c.json({ message: "Must use root domain for API requests" }, 418);
+    }
   }
   await next();
 });
@@ -229,105 +238,104 @@ app.get(
     // We serve different responses to this endpoint for bots (see isPlatformRequest)
     vary: "User-Agent",
   }),
-);
+  async (c) => {
+    const parsed = await StripParams.spa({
+      comic: c.req.param("comic"),
+      year: c.req.param("year"),
+      month: c.req.param("month"),
+      day: c.req.param("day"),
+    });
+    if (!parsed.success) {
+      return c.json(
+        { message: "Bad Request", errors: parsed.error.format() },
+        { status: 400 },
+      );
+    }
 
-app.get("/:comic/:year/:month/:day", async (c) => {
-  const parsed = await StripParams.spa({
-    comic: c.req.param("comic"),
-    year: c.req.param("year"),
-    month: c.req.param("month"),
-    day: c.req.param("day"),
-  });
-  if (!parsed.success) {
-    return c.json(
-      { message: "Bad Request", errors: parsed.error.format() },
-      { status: 400 },
-    );
-  }
+    const { origin, host } = new URL(c.req.url);
+    const isDirectRequest = host.split(".")[0] === "d";
+    if (!isDirectRequest && !isPlatformRequest(c.req)) {
+      return c.redirect(c.req.url.replace(origin, GOCOMICS_ORIGIN));
+    }
 
-  const { origin, host } = new URL(c.req.url);
-  const isDirectRequest = host.split(".")[0] === "d";
-  if (!isDirectRequest && !isPlatformRequest(c.req)) {
-    return c.redirect(c.req.url.replace(origin, GOCOMICS_ORIGIN));
-  }
+    let strip: Strip;
+    try {
+      strip = await getStrip(
+        parsed.data.comic,
+        parsed.data.year,
+        parsed.data.month,
+        parsed.data.day,
+      );
+    } catch (e) {
+      console.error(e);
+      return c.json(
+        { message: "Internal Server Error", error: String(e) },
+        { status: 500 },
+      );
+    }
+    if (isDirectRequest) {
+      return c.redirect(strip.imageUrl);
+    }
 
-  let strip: Strip;
-  try {
-    strip = await getStrip(
-      parsed.data.comic,
-      parsed.data.year,
-      parsed.data.month,
-      parsed.data.day,
-    );
-  } catch (e) {
-    console.error(e);
-    return c.json(
-      { message: "Internal Server Error", error: String(e) },
-      { status: 500 },
-    );
-  }
-  if (isDirectRequest) {
-    return c.redirect(strip.imageUrl);
-  }
+    const tags: MetaTag[] = [
+      { name: "theme-color", content: "#2F46AB" },
+      { property: "og:image", content: strip.imageUrl },
+      { "http-equiv": "refresh", content: `0; url=${strip.canonicalUrl}` },
+      { tagName: "link", rel: "canonical", href: strip.canonicalUrl },
+      { property: "og:url", content: strip.canonicalUrl },
+      { property: "twitter:site", content: "gocomics" },
+      { property: "twitter:card", content: "summary_large_image" },
+      { property: "og:title", content: strip.series.name },
+      { property: "og:site_name", content: "FxGoComics" },
+      {
+        tagName: "link",
+        href: `${origin}/assets/fxgocomics.svg`,
+        rel: "icon",
+        sizes: "svgxsvg",
+        type: "image/svg+xml",
+      },
+      {
+        tagName: "link",
+        href: `${origin}/assets/fxgocomics-64w.png`,
+        rel: "icon",
+        sizes: "64x64",
+        type: "image/png",
+      },
+      {
+        tagName: "link",
+        href: `${origin}/assets/fxgocomics-32w.png`,
+        rel: "icon",
+        sizes: "32x32",
+        type: "image/png",
+      },
+      {
+        tagName: "link",
+        href: `${origin}/assets/fxgocomics-16w.png`,
+        rel: "icon",
+        sizes: "16x16",
+        type: "image/png",
+      },
+      {
+        tagName: "link",
+        rel: "alternate",
+        type: "application/activity+json",
+        href: `${origin}/users/${parsed.data.comic}/statuses/${encodeSnowcode({
+          c: parsed.data.comic,
+          d: strip.published,
+        })}`,
+      },
+    ];
 
-  const tags: MetaTag[] = [
-    { name: "theme-color", content: "#2F46AB" },
-    { property: "og:image", content: strip.imageUrl },
-    { "http-equiv": "refresh", content: `0; url=${strip.canonicalUrl}` },
-    { tagName: "link", rel: "canonical", href: strip.canonicalUrl },
-    { property: "og:url", content: strip.canonicalUrl },
-    { property: "twitter:site", content: "gocomics" },
-    { property: "twitter:card", content: "summary_large_image" },
-    { property: "og:title", content: strip.series.name },
-    { property: "og:site_name", content: "FxGoComics" },
-    {
-      tagName: "link",
-      href: `${origin}/assets/fxgocomics.svg`,
-      rel: "icon",
-      sizes: "svgxsvg",
-      type: "image/svg+xml",
-    },
-    {
-      tagName: "link",
-      href: `${origin}/assets/fxgocomics-64w.png`,
-      rel: "icon",
-      sizes: "64x64",
-      type: "image/png",
-    },
-    {
-      tagName: "link",
-      href: `${origin}/assets/fxgocomics-32w.png`,
-      rel: "icon",
-      sizes: "32x32",
-      type: "image/png",
-    },
-    {
-      tagName: "link",
-      href: `${origin}/assets/fxgocomics-16w.png`,
-      rel: "icon",
-      sizes: "16x16",
-      type: "image/png",
-    },
-    {
-      tagName: "link",
-      rel: "alternate",
-      type: "application/activity+json",
-      href: `${origin}/users/${parsed.data.comic}/statuses/${encodeSnowcode({
-        c: parsed.data.comic,
-        d: strip.published,
-      })}`,
-    },
-  ];
-
-  return c.html(
-    html`<!doctype html><html lang="en"><head>
+    return c.html(
+      html`<!doctype html><html lang="en"><head>
 			<meta charset="UTF-8">
 			<title>${strip.title}</title>
 			${raw(compileMetaTags(tags))}
 		</head><body>
 			<p>Hello, you should be redirected shortly. If not, <a href="${strip.canonicalUrl}" rel="noreferrer">click here.</a></p>
 		</body></html>`,
-  );
-});
+    );
+  },
+);
 
 export default app satisfies ExportedHandler<Env>;
