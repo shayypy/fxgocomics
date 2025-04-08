@@ -78,5 +78,7 @@ export interface Strip {
     author: string;
     genre?: string;
     language?: string;
+    iconUrl?: string;
+    followers?: number;
   };
 }

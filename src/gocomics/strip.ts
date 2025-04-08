@@ -1,4 +1,5 @@
 import { GOCOMICS_ORIGIN, USER_AGENT } from "../http";
+import Scraper from "./scraper";
 import type {
   ComicPageComicStory,
   ComicPageImageObject,
@@ -14,35 +15,34 @@ export const getStrip = async (
 ): Promise<Strip> => {
   const dateFormatted = [year, month, day].join("/");
   const pathname = `/${comic}/${dateFormatted}`;
-  // TODO: reimplement scraper locally instead of double bouncing
-  // https://github.com/adamschwartz/web.scraper.workers.dev
-  const url = new URL("https://web.scraper.workers.dev");
   const canonical = `${GOCOMICS_ORIGIN}${pathname}`;
-  url.searchParams.set("url", canonical);
-  const selector = `script[type="application/ld+json"][data-sentry-component="Schema"]`;
-  url.searchParams.set("selector", selector);
-  url.searchParams.set("scrape", "text");
-  const response = await fetch(url, {
-    method: "GET",
-    headers: { "User-Agent": USER_AGENT },
-  });
+  const response = await fetch(canonical, { method: "GET" });
   if (!response.ok) {
     throw Error(
-      `Bad response from scraper: ${response.status} ${response.statusText}`,
+      `Bad response from GoComics: ${response.status} ${response.statusText}`,
     );
   }
 
-  const data = (await response.json()) as {
-    result: Record<string, string[]>;
-  };
-  // console.log("Result:", data.result);
-  if (!data.result || !data.result[selector]?.length) {
+  const scraper = new Scraper().fromResponse(response);
+  const ldScripts = (await scraper
+    .querySelector(
+      `script[type="application/ld+json"][data-sentry-component="Schema"]`,
+    )
+    .getText()) as string[];
+  const iconSrc = await scraper
+    .querySelector(`img[data-sentry-component="SiteImage"]`)
+    .getAttribute("src");
+  const subtitleCandidates = (await scraper
+    .querySelector(`h3[data-sentry-component="Typography"]`)
+    .getText({ last: true })) as string[];
+
+  if (!ldScripts.length) {
     throw Error(`No suitable data found on ${comic} page ${dateFormatted}`);
   }
 
   let story: ComicPageComicStory | undefined;
   let strip: ComicPageImageObject | undefined;
-  for (const raw of data.result[selector]) {
+  for (const raw of ldScripts) {
     let parsed: ComicPageLinkedData;
     try {
       parsed = JSON.parse(raw) as ComicPageLinkedData;
@@ -74,9 +74,18 @@ export const getStrip = async (
   }
   if (!strip) {
     throw Error(
-      `No suitable data found on ${comic} page (${dateFormatted}) after ${data.result[selector].length} data scripts`,
+      `No suitable data found on ${comic} page (${dateFormatted}) after ${ldScripts.length} scripts`,
     );
   }
+
+  let followers: number | undefined;
+  for (const candidate of subtitleCandidates) {
+    const match = /^By .+ \| (\d+) Followers$/i.exec(candidate);
+    if (match) {
+      followers = Number(match[1]);
+    }
+  }
+
   return {
     title: strip.name,
     canonicalUrl: canonical,
@@ -88,6 +97,8 @@ export const getStrip = async (
       author: strip.author.name,
       genre: story?.genre,
       language: story?.inLanguage,
+      iconUrl: iconSrc,
+      followers,
     },
   };
 };
