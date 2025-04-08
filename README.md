@@ -16,11 +16,11 @@ You can also replace `www.` with `d.` to link directly to the comic image, with 
 
 When the `:comic` parameter is present, use the of the comic as present in e.g. strip URLs.
 
-- GET `/api/v1/comics/:comic/strips/:date`
+#### GET `/api/v1/comics/:comic/strips/:date`
 
 Returns information for an individual strip. `:date` must be formatted as `YYYY-MM-DD`.
 
-- GET `/api/v1/comics/:comic`
+#### GET `/api/v1/comics/:comic`
 
 Returns information from the "about" page of the comic series.
 
