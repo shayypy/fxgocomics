@@ -11,6 +11,13 @@ import { GOCOMICS_ORIGIN, isPlatformRequest } from "./http";
 import { decodeSnowcode, encodeSnowcode } from "./snowcode";
 
 const app = new Hono();
+app.get("/api/*", async (c, next) => {
+  const { host } = new URL(c.req.url);
+  if (/(\.|^)fxgocomics\.com$/i.test(host) && host !== "fxgocomics.com") {
+    return c.json({ message: "Must use root domain for API requests" }, 418);
+  }
+  await next();
+});
 
 app.get(
   "*",

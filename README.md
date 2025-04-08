@@ -2,6 +2,8 @@
 
 This worker fixes GoComics embeds in Discord.
 
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https%3A%2F%2Fgithub.com%2Fshayypy%2Ffxgocomics)
+
 ## Usage
 
 Before sending a `www.gocomics.com` link, add `fx` like so:
@@ -14,13 +16,19 @@ You can also replace `www.` with `d.` to link directly to the comic image, with 
 
 ## API
 
-When the `:comic` parameter is present, use the of the comic as present in e.g. strip URLs.
+On the main public instance, API routes are only available on the `fxgocomics.com` host for cache purposes (do not include `www.` or `d.`).
 
-#### GET `/api/v1/comics/:comic/strips/:date`
+When the `:comic` parameter is present, use the name of the comic as present in e.g. strip URLs.
+
+#### Get Comic Strip
+
+`GET /api/v1/comics/:comic/strips/:date`
 
 Returns information for an individual strip. `:date` must be formatted as `YYYY-MM-DD`.
 
-#### GET `/api/v1/comics/:comic`
+#### Get Comic Series
+
+`GET /api/v1/comics/:comic`
 
 Returns information from the "about" page of the comic series.
 
