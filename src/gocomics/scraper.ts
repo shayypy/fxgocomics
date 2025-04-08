@@ -57,7 +57,7 @@ class Scraper {
     return this;
   }
 
-  async getText(opts?: { spaced?: boolean; last?: boolean }){
+  async getText(opts?: { spaced?: boolean; last?: boolean }) {
     const { spaced, last } = opts ?? {};
 
     const matches: Record<string, (string | true)[]> = {};

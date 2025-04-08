@@ -14,11 +14,15 @@ You can also replace `www.` with `d.` to link directly to the comic image, with 
 
 ## API
 
-We expose a JSON endpoint for individual strips:
+When the `:comic` parameter is present, use the of the comic as present in e.g. strip URLs.
 
 - GET `/api/v1/comics/:comic/strips/:date`
 
-Where `:comic` is the name of the comic (as present in the strip URL itself), and `:date` is formatted as `YYYY-MM-DD`.
+Returns information for an individual strip. `:date` must be formatted as `YYYY-MM-DD`.
+
+- GET `/api/v1/comics/:comic`
+
+Returns information from the "about" page of the comic series.
 
 ## Similar Websites
 

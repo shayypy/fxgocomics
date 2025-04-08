@@ -1,13 +1,14 @@
 import { Hono } from "hono";
 import { getStrip } from "./gocomics/strip";
 import { z } from "zod";
-import type { Strip } from "./gocomics/types";
+import type { Series, Strip } from "./gocomics/types";
 import { html, raw } from "hono/html";
 import { compileMetaTags, type MetaTag } from "./html/meta";
 import { GOCOMICS_ORIGIN, isPlatformRequest } from "./http";
 import { decodeSnowcode, encodeSnowcode } from "./snowcode";
 import { cache } from "hono/cache";
 import { env } from "hono/adapter";
+import { getSeries } from "./gocomics/series";
 
 const app = new Hono();
 
@@ -257,6 +258,34 @@ app.get("/:comic/:year/:month/:day", async (c) => {
 			<p>Hello, you should be redirected shortly. If not, <a href="${strip.canonicalUrl}" rel="noreferrer">click here.</a></p>
 		</body></html>`,
   );
+});
+
+app.get("/api/v1/comics/:comic", async (c) => {
+  const parsed = await z
+    .object({
+      comic: z.string().min(1).max(100),
+    })
+    .spa({
+      comic: c.req.param("comic"),
+    });
+  if (!parsed.success) {
+    return c.json(
+      { message: "Bad Request", errors: parsed.error.format() },
+      { status: 400 },
+    );
+  }
+
+  let series: Series;
+  try {
+    series = await getSeries(parsed.data.comic);
+  } catch (e) {
+    console.error(e);
+    return c.json(
+      { message: "Internal Server Error", error: String(e) },
+      { status: 500 },
+    );
+  }
+  return c.json(series);
 });
 
 app.get("/api/v1/comics/:comic/strips/:date", async (c) => {

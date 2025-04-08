@@ -1,18 +1,11 @@
 export interface ComicPageComicSeries {
-  "@type": "ComicSeries";
-  name: string;
-  url: string;
-}
-
-export interface ComicPageComicStory {
   "@context": "https://schema.org";
-  "@type": "ComicStory";
+  "@type": "ComicSeries";
   name: string;
   description: string;
   url: string;
   genre: string;
   inLanguage: string;
-  isAccessibleForFree: boolean;
   publisher: {
     "@type": string;
     name: string;
@@ -22,11 +15,17 @@ export interface ComicPageComicStory {
   };
   copyrightNotice: string;
   copyrightYear: number;
+  author: { "@type": "Person"; name: string }[];
+  image: string;
+}
+
+export interface ComicPageComicStory
+  extends Omit<ComicPageComicSeries, "@type"> {
+  "@type": "ComicStory";
+  isAccessibleForFree: boolean;
   /** YYYY-MM-DD */
   datePublished: string;
-  image: string;
-  author: [{ "@type": "Person"; name: string }];
-  isPartOf: ComicPageComicSeries;
+  isPartOf: Pick<ComicPageComicSeries, "@type" | "name" | "url">;
   isBasedOn: { "@type": "WebPage"; url: string };
 }
 
@@ -48,18 +47,29 @@ export interface ComicPageImageObject {
   representativeOfPage: boolean;
 }
 
-export type ComicPageLinkedData = ComicPageComicStory | ComicPageImageObject;
+export type ComicPageLinkedData =
+  | ComicPageComicSeries
+  | ComicPageComicStory
+  | ComicPageImageObject;
 
 // Summarized data to be returned
 
 export interface Series {
   title: string;
+  canonicalUrl: string;
   description?: string;
-  imageUrl?: string;
+  iconUrl?: string;
+  genre: string;
+  language: string;
+  followers?: number;
+  banners: {
+    hero?: string;
+    social: string;
+  };
   author: {
     name: string;
     bio: string;
-    imageUrl: string;
+    imageUrl: string | null;
   };
   characters: {
     name: string;
