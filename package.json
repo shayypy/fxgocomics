@@ -7,7 +7,9 @@
     "dev": "wrangler dev",
     "start": "wrangler dev",
     "test": "vitest",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "lint": "biome lint .",
+    "fix": "biome check . --fix"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
@@ -16,9 +18,7 @@
     "vitest": "~3.0.7",
     "wrangler": "^4.8.0"
   },
-  "trustedDependencies": [
-    "@biomejs/biome"
-  ],
+  "trustedDependencies": ["@biomejs/biome"],
   "dependencies": {
     "hono": "^4.7.5",
     "zod": "^3.24.2"

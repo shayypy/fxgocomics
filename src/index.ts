@@ -1,14 +1,14 @@
 import { Hono } from "hono";
-import { getStrip } from "./gocomics/strip";
-import { z } from "zod";
-import type { Series, Strip } from "./gocomics/types";
+import { env } from "hono/adapter";
+import { cache } from "hono/cache";
 import { html, raw } from "hono/html";
-import { compileMetaTags, type MetaTag } from "./html/meta";
+import { z } from "zod";
+import { getSeries } from "./gocomics/series";
+import { getStrip } from "./gocomics/strip";
+import type { Series, Strip } from "./gocomics/types";
+import { type MetaTag, compileMetaTags } from "./html/meta";
 import { GOCOMICS_ORIGIN, isPlatformRequest } from "./http";
 import { decodeSnowcode, encodeSnowcode } from "./snowcode";
-import { cache } from "hono/cache";
-import { env } from "hono/adapter";
-import { getSeries } from "./gocomics/series";
 
 const app = new Hono();
 
