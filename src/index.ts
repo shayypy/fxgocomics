@@ -151,7 +151,7 @@ app.get("/:comic/:year/:month/:day", async (c) => {
   }
 
   const tags: MetaTag[] = [
-    { name: "theme-color", value: "#2747B1" },
+    { name: "theme-color", content: "#2F46AB" },
     { property: "og:image", content: strip.imageUrl },
     { "http-equiv": "refresh", content: `0; url=${strip.canonicalUrl}` },
     { tagName: "link", rel: "canonical", href: strip.canonicalUrl },
