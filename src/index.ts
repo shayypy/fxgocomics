@@ -285,7 +285,14 @@ app.get(
       { property: "og:url", content: strip.canonicalUrl },
       { property: "twitter:site", content: "gocomics" },
       { property: "twitter:card", content: "summary_large_image" },
-      { property: "og:title", content: strip.series.name },
+      {
+        property: "twitter:title",
+        content: `${strip.series.name} (@${parsed.data.comic})`,
+      },
+      {
+        property: "og:title",
+        content: `${strip.series.name} (@${parsed.data.comic})`,
+      },
       { property: "og:site_name", content: "FxGoComics" },
       {
         tagName: "link",
