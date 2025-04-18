@@ -25,15 +25,13 @@ export const getStrip = async (
 
   const scraper = new Scraper().fromResponse(response);
   const ldScripts = (await scraper
-    .querySelector(
-      `script[type="application/ld+json"][data-sentry-component="Schema"]`,
-    )
+    .querySelector(`script[type="application/ld+json"]`)
     .getText()) as string[];
   const iconSrc = await scraper
-    .querySelector(`img[data-sentry-component="SiteImage"]`)
+    .querySelector(`img[class*="Badge"]`)
     .getAttribute("src");
   const subtitleCandidates = (await scraper
-    .querySelector(`h3[data-sentry-component="Typography"]`)
+    .querySelector(`h3[class*="Typography"]`)
     .getText({ last: true })) as string[];
 
   if (!ldScripts.length) {

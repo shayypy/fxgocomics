@@ -18,18 +18,16 @@ export const getSeries = async (name: string): Promise<Series> => {
 
   const scraper = new Scraper().fromResponse(response);
   const ldScriptsRaw = (await scraper
-    .querySelector(
-      `script[type="application/ld+json"][data-sentry-component="Schema"]`,
-    )
+    .querySelector(`script[type="application/ld+json"]`)
     .getText()) as string[];
   const descriptionCandidates = (await scraper
-    .querySelector(`div[data-sentry-component="RichTextParser"]>p`)
+    .querySelector(`div[class*="RichTextParser"]>p`)
     .getText()) as string[];
   const iconSrc = await scraper
-    .querySelector(`img[data-sentry-component="SiteImage"]`)
+    .querySelector(`img[class*="Badge"]`)
     .getAttribute("src");
   const subtitleCandidates = (await scraper
-    .querySelector(`h3[data-sentry-component="Typography"]`)
+    .querySelector(`h3[class*="Typography"]`)
     .getText()) as string[];
 
   // Author & character data
