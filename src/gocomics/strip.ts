@@ -37,18 +37,18 @@ export const getStrip = async (
   if (!ldScripts.length) {
     throw Error(`No suitable data found on ${comic} page ${dateFormatted}`);
   }
+  const parsedScripts = ldScripts.flatMap((raw) => {
+    try {
+      return [JSON.parse(raw) as ComicPageLinkedData];
+    } catch {
+      console.log("Failed to parse as JSON:", raw);
+      return [];
+    }
+  });
 
   let story: ComicPageComicStory | undefined;
   let strip: ComicPageImageObject | undefined;
-  for (const raw of ldScripts) {
-    let parsed: ComicPageLinkedData;
-    try {
-      parsed = JSON.parse(raw) as ComicPageLinkedData;
-    } catch {
-      console.log("Failed to parse as JSON:", raw);
-      continue;
-    }
-    // console.log("Parsed:", parsed);
+  for (const parsed of parsedScripts) {
     if (!story && parsed["@type"] === "ComicStory") {
       story = parsed;
       if (strip) break;
@@ -58,6 +58,8 @@ export const getStrip = async (
       parsed.representativeOfPage &&
       parsed.contentUrl
     ) {
+      // Instead of checking published date, we should exclude sections of the
+      // page that we know not to be the actual strip. See below.
       const published = new Date(parsed.datePublished);
       if (
         published.getFullYear() === year &&
@@ -71,9 +73,22 @@ export const getStrip = async (
     }
   }
   if (!strip) {
-    throw Error(
-      `No suitable data found on ${comic} page (${dateFormatted}) after ${ldScripts.length} scripts`,
+    // Sometimes there are strips with a published date that does not match
+    // the page URL. I think this might be the date of publication for a
+    // colorization, for example, rather than the original strip. In this case,
+    // we'll just find the first somewhat suitable ImageObject on the page.
+    strip = parsedScripts.find(
+      (parsed): parsed is ComicPageImageObject =>
+        parsed["@type"] === "ImageObject" &&
+        parsed.representativeOfPage &&
+        !!parsed.contentUrl,
     );
+    if (!strip) {
+      // Truly nothing on this page
+      throw Error(
+        `No suitable data found on ${comic} page (${dateFormatted}) after ${ldScripts.length} scripts`,
+      );
+    }
   }
 
   let followers: number | undefined;
