@@ -71,7 +71,7 @@ class Scraper {
       let nextText = "";
 
       this.rewriter.on(selector, {
-        element(element) {
+        element(_element) {
           matches[selector].push(true);
           nextText = "";
         },
@@ -130,7 +130,6 @@ class Scraper {
         this.attr = attr;
       }
 
-      // biome-ignore lint/suspicious/noExplicitAny:
       element(element: { getAttribute: (arg0: string) => any }) {
         if (this.value) return;
 

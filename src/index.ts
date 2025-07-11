@@ -6,7 +6,7 @@ import { z } from "zod";
 import { getSeries } from "./gocomics/series";
 import { getStrip, getStripRsc } from "./gocomics/strip";
 import type { Series, Strip } from "./gocomics/types";
-import { type MetaTag, compileMetaTags } from "./html/meta";
+import { compileMetaTags, type MetaTag } from "./html/meta";
 import { GOCOMICS_ORIGIN, isPlatformRequest } from "./http";
 import { decodeSnowcode, encodeSnowcode } from "./snowcode";
 
