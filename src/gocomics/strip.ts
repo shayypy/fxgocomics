@@ -7,13 +7,15 @@ import type {
   Strip,
 } from "./types";
 
+const pad = (num: number, max: number) => String(num).padStart(max, "0");
+
 export const getStrip = async (
   comic: string,
   year: number,
   month: number,
   day: number,
 ): Promise<Strip> => {
-  const dateFormatted = [year, month, day].join("/");
+  const dateFormatted = [year, pad(month, 2), pad(day, 2)].join("/");
   const pathname = `/${comic}/${dateFormatted}`;
   const canonical = `${GOCOMICS_ORIGIN}${pathname}`;
   const response = await fetch(canonical, { method: "GET" });
@@ -114,4 +116,143 @@ export const getStrip = async (
       followers,
     },
   };
+};
+
+const rscToEvents = (text: string) => {
+  const lines = text.split(/\r?\n/);
+  const events = [];
+
+  for (const line of lines) {
+    if (!line) continue;
+    const [idPrefix] = line.split(":");
+    const payload = idPrefix ? line.replace(`${idPrefix}:`, "") : line;
+    if (!idPrefix || !payload) continue;
+
+    const id = Number.parseInt(idPrefix, 10);
+    try {
+      const value = JSON.parse(payload);
+      events.push({ type: "json", id, value });
+    } catch {
+      // console.log(payload);
+      // if (payload.includes("@type")) {
+      //   events.push({ type: "text", id, value: payload });
+      // }
+    }
+  }
+
+  return events;
+};
+
+interface RSCComicPayload {
+  aspectRatio: number;
+  url: string;
+  isRerun: boolean;
+  id: number;
+  featureId: number;
+  date: string;
+  issueDate: string;
+  originalDate: string;
+  width: number;
+  height: number;
+  imageColoration: string;
+  imageFormat: string;
+  blobName: string;
+  cdnPath: string;
+  colorSpace: string;
+  mimeType: string;
+  assetType: string;
+  previousDate: string;
+  nextDate: string;
+}
+
+export const getStripRsc = async (
+  comic: string,
+  year: number,
+  month: number,
+  day: number,
+): Promise<Strip> => {
+  const dateFormatted = [year, pad(month, 2), pad(day, 2)].join("/");
+  const pathname = `/${comic}/${dateFormatted}`;
+  const canonical = `${GOCOMICS_ORIGIN}${pathname}`;
+  const response = await fetch(canonical, {
+    method: "GET",
+    headers: { RSC: "1" },
+  });
+  if (!response.ok) {
+    throw Error(
+      `Bad response from GoComics: ${response.status} ${response.statusText}`,
+    );
+  }
+  const contentType = response.headers.get("Content-Type");
+  if (contentType?.toLowerCase() !== "text/x-component") {
+    throw Error(`Unexpected type from GoComics: ${contentType}`);
+  }
+
+  const strip: Partial<Strip> = {
+    title: comic,
+    canonicalUrl: canonical,
+    published: [year, pad(month, 2), pad(day, 2)].join("-"),
+  };
+
+  // TODO: I think the ideal solution here is actually to get the content
+  // of the `dangerouslySetInnerHtml` script tags then parse those the same
+  // way we do in `getStrip`. The below method is more limited but it's easier
+  // since the data is already provided in JSON format.
+  const text = await response.text();
+  const events = rscToEvents(text);
+  const scripts: ComicPageLinkedData[] = [];
+  for (const event of events) {
+    if (event.type !== "json" || !Array.isArray(event.value)) continue;
+    for (const child of event.value) {
+      if (!child) continue;
+      if (!child?.children || !Array.isArray(child.children)) continue;
+      for (const innerChild of child.children) {
+        if (!innerChild) continue;
+        if (
+          innerChild[1] === "script" &&
+          innerChild[3]?.dangerouslySetInnerHTML?.__html &&
+          innerChild[3]?.type === "application/ld+json"
+        ) {
+          try {
+            scripts.push(
+              JSON.parse(innerChild[3].dangerouslySetInnerHTML.__html),
+            );
+          } catch {}
+        } else if (
+          innerChild[0] === "$" &&
+          innerChild[3]?.initialComicStripsData &&
+          Array.isArray(innerChild[3]?.children)
+        ) {
+          for (const objChild of innerChild[3].children) {
+            if (!objChild?.[3]?.comic) continue;
+            const data = objChild[3].comic as RSCComicPayload;
+            strip.imageUrl = data.url;
+            strip.published = data.date;
+          }
+        }
+      }
+      // if (child[1] === "title" && !!child[3]?.children) {
+      //   strip.title = child[3].children;
+      // } else if (child[1] === "meta" && child[3]?.property === "og:image") {
+      //   strip.imageUrl = child[3].content;
+      // } else if (child[1] === "link" && child[3]?.rel === "canonical") {
+      //   strip.canonicalUrl = child[3].href;
+      // }
+    }
+  }
+
+  for (const script of scripts) {
+    if (script["@type"] !== "ImageObject") continue;
+
+    strip.title = script.name;
+    if (!strip.imageUrl) {
+      strip.imageUrl = script.url;
+    }
+    strip.series = {
+      author: script.author.name,
+      name: comic,
+    };
+  }
+
+  return strip as Strip;
 };

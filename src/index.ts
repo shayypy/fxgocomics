@@ -4,7 +4,7 @@ import { cache } from "hono/cache";
 import { html, raw } from "hono/html";
 import { z } from "zod";
 import { getSeries } from "./gocomics/series";
-import { getStrip } from "./gocomics/strip";
+import { getStrip, getStripRsc } from "./gocomics/strip";
 import type { Series, Strip } from "./gocomics/types";
 import { type MetaTag, compileMetaTags } from "./html/meta";
 import { GOCOMICS_ORIGIN, isPlatformRequest } from "./http";
@@ -35,13 +35,21 @@ app.get(
     // 30 minutes
     cacheControl: "max-age=1800",
     // For all routes, this is our cache key for the following reasons:
-    // - We don't define any query parameters, so we're intentionally
-    //   disallowing cache busting for the purpose of spam
+    // - We don't allow random query parameters for the purpose of spam via
+    //   cache busting
     // - We host on multiple domains and we want them to share a cache (so the
     //   real origin is not considered)
     keyGenerator: (c) => {
-      const { pathname } = new URL(c.req.url);
-      const base = new URL(`http://localhost${pathname}`);
+      const { pathname, searchParams } = new URL(c.req.url);
+
+      // Allowed, validated query params
+      const params = new URLSearchParams();
+      const rsc = searchParams.get("rsc");
+      if (rsc && ["true", "false"].includes(rsc)) {
+        params.set("rsc", rsc);
+      }
+
+      const base = new URL(`http://localhost${pathname}?${params}`);
       // Not sure why, but the key has to be a valid URL
       return base.href;
     },
@@ -107,10 +115,15 @@ app.get("/api/v1/comics/:comic/strips/:date", async (c) => {
     .object({
       comic: z.string().min(1).max(100),
       date: z.string().date(),
+      rsc: z
+        .enum(["true", "false"])
+        .default("false")
+        .transform((v) => v === "true"),
     })
     .spa({
       comic: c.req.param("comic"),
       date: c.req.param("date"),
+      rsc: c.req.query("rsc"),
     });
   if (!parsed.success) {
     return c.json(
@@ -122,7 +135,11 @@ app.get("/api/v1/comics/:comic/strips/:date", async (c) => {
   const [year, month, day] = parsed.data.date.split("-").map(Number);
   let strip: Strip;
   try {
-    strip = await getStrip(parsed.data.comic, year, month, day);
+    if (parsed.data.rsc) {
+      strip = await getStripRsc(parsed.data.comic, year, month, day);
+    } else {
+      strip = await getStrip(parsed.data.comic, year, month, day);
+    }
   } catch (e) {
     console.error(e);
     return c.json(

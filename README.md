@@ -26,6 +26,10 @@ When the `:comic` parameter is present, use the name of the comic as present in 
 
 Returns information for an individual strip. `:date` must be formatted as `YYYY-MM-DD`.
 
+**2025-06-11:** If you notice that you are receiving the latest strip when you requested an earlier date (or some other manner of unintended effect), please do the following:
+1. Report it to me in the Peanuts server
+2. Try using `?rsc=true` to use the alternate parsing method. The data is formatted slightly differently but it should still be usable.
+
 #### Get Comic Series
 
 `GET /api/v1/comics/:comic`
