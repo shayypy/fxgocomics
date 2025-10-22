@@ -9,6 +9,8 @@ import type { Series, Strip } from "./gocomics/types";
 import { compileMetaTags, type MetaTag } from "./html/meta";
 import { GOCOMICS_ORIGIN, isPlatformRequest } from "./http";
 import { decodeSnowcode, encodeSnowcode } from "./snowcode";
+import { getCalendar } from "./gocomics/rss";
+import { Feed } from "feed";
 
 const app = new Hono();
 app.get("/api/*", async (c, next) => {
@@ -359,6 +361,92 @@ app.get(
 			<p>Hello, you should be redirected shortly. If not, <a href="${strip.canonicalUrl}" rel="noreferrer">click here.</a></p>
 		</body></html>`,
     );
+  },
+);
+
+app.get(
+  "/:comic/:feed",
+  cache({
+    cacheName: "feed",
+    // 2 hours
+    cacheControl: "max-age=7200",
+    keyGenerator: (c) => {
+      const { host, pathname } = new URL(c.req.url);
+      // Cache the same feed for all 3 domains
+      const reducedHost = host.split(".").slice(-2).join(".");
+      const base = new URL(`https://${reducedHost}${pathname}`);
+      return base.href;
+    },
+  }),
+  async (c) => {
+    const parsed = await z
+      .object({
+        comic: z.string().min(1).max(100),
+        feed: z.enum(["feed.rss", "feed.json"]),
+      })
+      .spa({
+        comic: c.req.param("comic"),
+        feed: c.req.param("feed"),
+      });
+    if (!parsed.success) {
+      return c.json(
+        { message: "Bad Request", errors: parsed.error.format() },
+        { status: 400 },
+      );
+    }
+
+    let entries: Strip[];
+    try {
+      entries = await getCalendar(parsed.data.comic);
+    } catch (e) {
+      console.error(e);
+      return c.json(
+        { message: "Internal Server Error", error: String(e) },
+        { status: 500 },
+      );
+    }
+
+    let comic: Series | undefined;
+    try {
+      comic = await getSeries(parsed.data.comic);
+    } catch {}
+
+    const feed = new Feed({
+      title: comic ? comic.title : parsed.data.comic,
+      description: comic?.description,
+      link: comic?.canonicalUrl ?? `https://gocomics.com/${parsed.data.comic}`,
+      id: parsed.data.comic,
+      language: "en",
+      copyright: comic?.author.name ?? "",
+    });
+    for (const entry of entries) {
+      const dateString = entry.canonicalUrl.split("/").slice(-3).join("-");
+      const date = new Date(dateString);
+      feed.addItem({
+        title: entry.title,
+        id: dateString,
+        link: entry.canonicalUrl,
+        image: entry.imageUrl,
+        date,
+        published: date,
+        author: comic?.author
+          ? [
+              {
+                name: comic.author.name,
+                avatar: comic.author.imageUrl ?? undefined,
+              },
+            ]
+          : [],
+      });
+    }
+
+    return parsed.data.feed === "feed.json"
+      ? new Response(feed.json1(), {
+          headers: { "Content-Type": "application/json" },
+        })
+      : new Response(feed.rss2(), {
+          headers: { "Content-Type": "text/xml" },
+        });
   },
 );
 

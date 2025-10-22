@@ -4,6 +4,8 @@
   "main": "src/index.ts",
   "workers_dev": false,
   "compatibility_date": "2025-04-07",
+  // Need nodejs_compat for `feed`, which requires string_decoder
+  "compatibility_flags": ["nodejs_compat"],
   "placement": { "mode": "smart" },
   "assets": { "directory": "./public/", "binding": "ASSETS" },
   "routes": [
