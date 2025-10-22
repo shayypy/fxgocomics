@@ -1,16 +1,16 @@
+import { Feed } from "feed";
 import { Hono } from "hono";
 import { env } from "hono/adapter";
 import { cache } from "hono/cache";
 import { html, raw } from "hono/html";
 import { z } from "zod";
+import { getCalendar } from "./gocomics/rss";
 import { getSeries } from "./gocomics/series";
 import { getStrip, getStripRsc } from "./gocomics/strip";
 import type { Series, Strip } from "./gocomics/types";
 import { compileMetaTags, type MetaTag } from "./html/meta";
 import { GOCOMICS_ORIGIN, isPlatformRequest } from "./http";
 import { decodeSnowcode, encodeSnowcode } from "./snowcode";
-import { getCalendar } from "./gocomics/rss";
-import { Feed } from "feed";
 
 const app = new Hono();
 app.get("/api/*", async (c, next) => {
