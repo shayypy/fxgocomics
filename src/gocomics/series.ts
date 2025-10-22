@@ -5,11 +5,14 @@ import type {
   ComicPageImageObject,
   Series,
 } from "./types";
-import { parseLinkedDataScripts } from "./util";
+import { headers, parseLinkedDataScripts } from "./util";
 
 export const getSeries = async (name: string): Promise<Series> => {
   const canonical = `${GOCOMICS_ORIGIN}/${name}/about`;
-  const response = await fetch(canonical, { method: "GET" });
+  const response = await fetch(canonical, {
+    method: "GET",
+    headers: { ...headers, "Next-Url": `/${name}/about` },
+  });
   if (!response.ok) {
     throw Error(
       `Bad response from GoComics: ${response.status} ${response.statusText}`,

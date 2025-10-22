@@ -6,6 +6,7 @@ import type {
   ComicPageLinkedData,
   Strip,
 } from "./types";
+import { headers } from "./util";
 
 const pad = (num: number, max: number) => String(num).padStart(max, "0");
 
@@ -18,7 +19,13 @@ export const getStrip = async (
   const dateFormatted = [year, pad(month, 2), pad(day, 2)].join("/");
   const pathname = `/${comic}/${dateFormatted}`;
   const canonical = `${GOCOMICS_ORIGIN}${pathname}`;
-  const response = await fetch(canonical, { method: "GET" });
+  const response = await fetch(canonical, {
+    method: "GET",
+    headers: {
+      ...headers,
+      "Next-Url": pathname,
+    },
+  });
   if (!response.ok) {
     throw Error(
       `Bad response from GoComics: ${response.status} ${response.statusText}`,
@@ -176,7 +183,11 @@ export const getStripRsc = async (
   const canonical = `${GOCOMICS_ORIGIN}${pathname}`;
   const response = await fetch(canonical, {
     method: "GET",
-    headers: { RSC: "1" },
+    headers: {
+      ...headers,
+      RSC: "1",
+      "Next-Url": pathname,
+    },
   });
   if (!response.ok) {
     throw Error(
